@@ -3,12 +3,18 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function Header() {
+  const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/' });
   };
   
   return (
@@ -23,19 +29,32 @@ export default function Header() {
           </div>
           
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden md:flex items-center space-x-8">
             <Link href="/" className="text-gray-700 hover:text-blue-600 transition-colors">
               Home
             </Link>
             <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
               About
             </Link>
-            <Link href="/login" className="text-gray-700 hover:text-blue-600 transition-colors">
-              Login
-            </Link>
-            <Link href="/register" className="btn-primary">
-              Sign Up
-            </Link>
+            {status === 'authenticated' ? (
+              <>
+                <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Dashboard
+                </Link>
+                <button onClick={handleSignOut} className="btn-secondary">
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Login
+                </Link>
+                <Link href="/register" className="btn-primary">
+                  Sign Up
+                </Link>
+              </>
+            )}
           </nav>
           
           {/* Mobile menu button */}
@@ -75,35 +94,25 @@ export default function Header() {
       {/* Mobile Navigation */}
       {isMenuOpen && (
         <div className="md:hidden bg-white border-t">
-          <div className="container mx-auto px-4 py-2 space-y-2">
-            <Link
-              href="/"
-              className="block py-2 text-gray-700 hover:text-blue-600 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/about"
-              className="block py-2 text-gray-700 hover:text-blue-600 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              About
-            </Link>
-            <Link
-              href="/login"
-              className="block py-2 text-gray-700 hover:text-blue-600 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="block py-2 text-blue-600 font-medium"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Sign Up
-            </Link>
+          <div className="container mx-auto px-4 py-4 space-y-4">
+            <Link href="/" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>Home</Link>
+            <Link href="/about" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>About</Link>
+            {status === 'authenticated' ? (
+              <>
+                <Link href="/dashboard" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>Dashboard</Link>
+                <button 
+                  onClick={() => { toggleMenu(); handleSignOut(); }}
+                  className="w-full text-left py-2 text-red-600 font-medium"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>Login</Link>
+                <Link href="/register" className="block w-full text-center btn-primary py-2" onClick={toggleMenu}>Sign Up</Link>
+              </>
+            )}
           </div>
         </div>
       )}

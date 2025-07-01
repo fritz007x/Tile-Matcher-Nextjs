@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { MatchResultItem } from '@/types';
-import AuthService from '@/lib/auth';
+import { withAuth } from '@/lib/auth';
 
 interface SavedMatch {
   id: string;
@@ -17,8 +17,8 @@ interface SavedMatch {
   results: MatchResultItem[];
 }
 
-export default function DashboardPage() {
-  const router = useRouter();
+function DashboardPage() {
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [recentMatches, setRecentMatches] = useState<SavedMatch[]>([]);
   const [savedMatches, setSavedMatches] = useState<SavedMatch[]>([]);
@@ -64,20 +64,9 @@ export default function DashboardPage() {
   ];
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!AuthService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-
-    // Simulate API fetch
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // In a real app, these would be API calls
-        // const recentData = await apiService.user.getRecentMatches();
-        // const savedData = await apiService.user.getSavedMatches();
-        
         // Using mock data for now
         setRecentMatches(mockMatches);
         setSavedMatches(mockMatches.slice(0, 1));
@@ -89,7 +78,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [router]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -119,11 +108,11 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   <p className="text-gray-700">
                     <span className="font-medium block">Name:</span>
-                    {AuthService.getUser()?.name || 'User'}
+                    {session?.user?.name || 'User'}
                   </p>
                   <p className="text-gray-700">
                     <span className="font-medium block">Email:</span>
-                    {AuthService.getUser()?.email || 'user@example.com'}
+                    {session?.user?.email || 'user@example.com'}
                   </p>
                   <p className="text-gray-700">
                     <span className="font-medium block">Account Type:</span>
@@ -131,7 +120,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <Link href="/settings" className="btn-outline w-full text-center">
+                  <Link href="/settings" className="btn-secondary w-full">
                     Account Settings
                   </Link>
                 </div>
@@ -161,22 +150,22 @@ export default function DashboardPage() {
               {/* Recent searches */}
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">Recent Searches</h2>
+                  <h2 className="text-xl font-semibold">Recent Matches</h2>
                   <Link href="/history" className="text-blue-600 text-sm hover:text-blue-800">
                     View All
                   </Link>
                 </div>
                 
                 {recentMatches.length === 0 ? (
-                  <p className="text-gray-500 py-4">No recent searches found.</p>
+                  <p className="text-gray-500 py-4">You haven't performed any matches yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {recentMatches.map(match => (
-                      <div key={match.id} className="border rounded-lg p-4 flex items-start">
+                      <div key={match.id} className="border rounded-lg p-4 flex items-center">
                         <div className="w-20 h-20 relative mr-4 flex-shrink-0">
                           <Image 
                             src={match.imageUrl}
-                            alt="Uploaded tile" 
+                            alt="Matched tile" 
                             fill 
                             className="object-cover rounded"
                             placeholder="blur"
@@ -185,7 +174,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex-grow">
                           <p className="text-sm text-gray-500">
-                            {formatDate(match.date)}
+                            Matched on {formatDate(match.date)}
                           </p>
                           <p className="font-medium">
                             Top match: {match.results[0].metadata.model_name}
@@ -224,7 +213,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-4">
                     {savedMatches.map(match => (
-                      <div key={match.id} className="border rounded-lg p-4 flex items-start">
+                      <div key={match.id} className="border rounded-lg p-4 flex items-center">
                         <div className="w-20 h-20 relative mr-4 flex-shrink-0">
                           <Image 
                             src={match.imageUrl}
@@ -272,3 +261,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+export default withAuth(DashboardPage);

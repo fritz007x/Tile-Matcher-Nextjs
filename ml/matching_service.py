@@ -5,9 +5,16 @@ from dataclasses import dataclass
 import cv2
 from PIL import Image
 import logging
-import faiss
 import pickle
 import time
+
+# Try to import faiss, but provide graceful fallback if not available
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    print("FAISS not available - using fallback matching methods only")
+    FAISS_AVAILABLE = False
 
 from .feature_extractors import get_feature_extractor, BaseFeatureExtractor
 
@@ -144,6 +151,11 @@ class TileMatchingService:
         Build a FAISS index for faster similarity search.
         This is particularly useful for large datasets.
         """
+        # Check if FAISS is available
+        if not FAISS_AVAILABLE:
+            logger.warning("FAISS is not available - skipping index building")
+            return
+            
         # Only implemented for ViT features for now
         if 'vit' not in self.extractors:
             logger.warning("FAISS index is only supported for ViT features")
@@ -185,6 +197,11 @@ class TileMatchingService:
         Returns:
             List of MatchResult objects
         """
+        # Check if FAISS is available
+        if not FAISS_AVAILABLE:
+            logger.warning("FAISS is not available - unable to perform index search")
+            return []
+            
         if self.index is None or 'vit' not in self.extractors:
             logger.warning("FAISS index not built or ViT extractor not available")
             return []

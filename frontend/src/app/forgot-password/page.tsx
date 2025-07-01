@@ -36,21 +36,23 @@ export default function ForgotPasswordPage() {
       setError('');
       
       // Call the password reset API
-      try {
-        await apiService.auth.forgotPassword({ email });
-        setIsSubmitted(true);
-      } catch (err: unknown) {
-        const apiError = err as ApiError;
-        if (apiError.status === 404) {
-          // Don't reveal if email exists or not (security best practice)
-          // Still show success message even if email not found
-          setIsSubmitted(true);
-        } else {
-          setError(apiError.message || 'An error occurred. Please try again.');
-        }
-      }
+      await apiService.auth.forgotPassword({ email });
+      // Always show success message (security best practice: don't reveal if email exists)
+      setIsSubmitted(true);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to process your request. Please try again.');
+      console.error('Password reset error:', err);
+      // For 404 errors (email not found), still show success to avoid exposing user information
+      if (err?.status === 404 || err?.response?.status === 404) {
+        setIsSubmitted(true);
+        return;
+      }
+      
+      // For all other errors, display a user-friendly message
+      setError(
+        err?.response?.data?.detail || 
+        err?.message || 
+        'Failed to process your request. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -116,14 +118,16 @@ export default function ForgotPasswordPage() {
                       className="w-full btn-primary py-2.5"
                       disabled={isLoading}
                     >
-                      {isLoading ? (
-                        <>
-                          <LoadingSpinner size="small" text="" />
-                          <span className="ml-2">Sending...</span>
-                        </>
-                      ) : (
-                        'Send Reset Instructions'
-                      )}
+                      <div className="flex items-center justify-center">
+                        {isLoading ? (
+                          <>
+                            <LoadingSpinner size="small" text="" />
+                            <span className="ml-2">Sending...</span>
+                          </>
+                        ) : (
+                          'Send Reset Instructions'
+                        )}
+                      </div>
                     </button>
                   </div>
                 </form>

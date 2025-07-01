@@ -1,14 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { signIn } from 'next-auth/react';
+import { FcGoogle } from 'react-icons/fc';
 import { apiService } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/login?registered=success';
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,6 +41,19 @@ export default function RegisterPage() {
       return;
     }
     
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate password strength
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -55,10 +74,19 @@ export default function RegisterPage() {
       router.push('/login?registered=success');
     } catch (err: any) {
       console.error('Registration error:', err);
-      setError(err.response?.data?.detail || 'Failed to register. Please try again.');
+      setError(
+        err.response?.data?.detail ||
+        err.message ||
+        'Failed to register. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true);
+    await signIn('google', { callbackUrl });
   };
 
   return (
@@ -151,10 +179,42 @@ export default function RegisterPage() {
                   className="w-full btn-primary py-2.5"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating Account...' : 'Create Account'}
+                  <div className="flex items-center justify-center">
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="small" text="" />
+                      <span className="ml-2">Creating Account...</span>
+                    </>
+                  ) : (
+                    'Create Account'
+                  )}
+                </div>
                 </button>
               </div>
             </form>
+            
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignUp}
+                  className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                >
+                  <FcGoogle className="h-5 w-5" />
+                  <span>Sign up with Google</span>
+                </button>
+              </div>
+            </div>
             
             <div className="mt-6 text-center">
               <p className="text-gray-600">

@@ -1,23 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { apiService } from '@/lib/api';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { signIn } from 'next-auth/react';
+import { FcGoogle } from 'react-icons/fc';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const registered = searchParams.get('registered') === 'success';
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
+    if (!formData.email || !formData.password) {
       setError('Please enter both email and password');
       return;
     }
@@ -26,20 +42,32 @@ export default function LoginPage() {
       setIsLoading(true);
       setError('');
       
-      // Call the login API
-      const data = await apiService.auth.login(email, password);
+      // Use NextAuth signIn instead of direct API call
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+        callbackUrl,
+      });
       
-      // Store the token in localStorage
-      localStorage.setItem('token', data.access_token);
+      if (result?.error) {
+        setError('Invalid email or password');
+        return;
+      }
       
-      // Redirect to home page
-      router.push('/');
+      // Successful login, redirect to callbackUrl
+      router.push(callbackUrl);
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.response?.data?.detail || 'Failed to login. Please check your credentials.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    await signIn('google', { callbackUrl });
   };
 
   return (
@@ -51,6 +79,11 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-center mb-8">Login to Tile Matcher</h1>
           
           <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
+            {registered && (
+              <div className="p-3 mb-4 bg-green-50 text-green-700 rounded-md text-sm">
+                Registration successful! Please sign in with your credentials.
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
@@ -65,8 +98,9 @@ export default function LoginPage() {
                 <input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="your@email.com"
                   required
@@ -85,8 +119,9 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
                   required
@@ -99,10 +134,42 @@ export default function LoginPage() {
                   className="w-full btn-primary py-2.5"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Signing in...' : 'Sign in'}
+                  <div className="flex items-center justify-center">
+                    {isLoading ? (
+                      <>
+                        <LoadingSpinner size="small" text="" />
+                        <span className="ml-2">Signing in...</span>
+                      </>
+                    ) : (
+                      'Sign in'
+                    )}
+                  </div>
                 </button>
               </div>
             </form>
+            
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                >
+                  <FcGoogle className="h-5 w-5" />
+                  <span>Sign in with Google</span>
+                </button>
+              </div>
+            </div>
             
             <div className="mt-6 text-center">
               <p className="text-gray-600">
