@@ -21,6 +21,7 @@ load_dotenv()
 # Import API routers
 from api.endpoints import matching
 from api.dependencies import get_matching_service, get_current_user
+from db import init_db
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -94,12 +95,20 @@ async def general_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup_event():
     """Initialize application services on startup"""
+    logger.info("Starting application initialization...")
     try:
+        # Initialize the database connection
+        await init_db()
+        
         # Initialize the matching service
-        matching_service = get_matching_service()
-        logger.info("Application startup complete")
+        get_matching_service()
+        logger.info("Matching service successfully initialized.")
+
+        logger.info("Application startup complete.")
     except Exception as e:
-        logger.error(f"Error during startup: {str(e)}")
+        logger.critical(f"An error occurred during application startup: {e}", exc_info=True)
+        # Re-raising the exception will stop the application from starting
+        # in a broken state, which is generally the desired behavior.
         raise
 
 if __name__ == "__main__":
