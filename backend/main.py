@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))  # Add project root to path
 
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
@@ -19,9 +20,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Import API routers
-from api.endpoints import matching
-from api.dependencies import get_matching_service, get_current_user
-from db import init_db
+from backend.api import routes
+from backend.api.dependencies import get_matching_service, get_current_user
+from backend.db import init_db
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -47,7 +48,7 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(matching.router)
+app.include_router(routes.router)
 
 # Models
 class HealthCheck(BaseModel):
