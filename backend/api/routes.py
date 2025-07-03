@@ -1,15 +1,15 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 import numpy as np
 import cv2
 import os
 import logging
 
-from ml.matching_service import TileMatchingService, MatchResult
-from backend.api.dependencies import get_matching_service
-from backend.schemas import TileResponse
 from backend.models.tile import Tile
+from backend.services.matching import TileMatchingService, get_matching_service
+from backend.schemas import TileResponse, MatchResponse, TileSearch, TileSearchResults
 
 router = APIRouter(prefix="/api/matching", tags=["matching"])
 
@@ -142,12 +142,56 @@ async def match_tile(
             detail=f"Error processing image: {str(e)}"
         )
 
-@router.get("/methods")
+@router.get("/methods", response_model=List[str])
 async def get_available_methods():
     """
     Get list of available matching methods
     """
-    return {
-        "methods": ["sift", "orb", "kaze", "vit"],
-        "default_methods": ["sift", "orb", "kaze", "vit"]
-    }
+    return ["color_histogram", "sift"]
+
+@router.post("/search", response_model=TileSearchResults)
+async def search_tiles(
+    search: TileSearch,
+    matching_service: TileMatchingService = Depends(get_matching_service)
+):
+    """
+    Search for tiles based on various criteria.
+    Supports searching by SKU, model name, collection name, and description.
+    """
+    try:
+        # Build the query
+        query = {}
+        
+        # Add text search if any text fields are provided
+        if search.sku:
+            query["sku"] = {"$regex": f".*{search.sku}.*", "$options": "i"}
+        if search.model_name:
+            query["model_name"] = {"$regex": f".*{search.model_name}.*", "$options": "i"}
+        if search.collection_name:
+            query["collection_name"] = {"$regex": f".*{search.collection_name}.*", "$options": "i"}
+        if search.description:
+            query["description"] = {"$regex": f".*{search.description}.*", "$options": "i"}
+        if search.created_after:
+            query["created_at"] = {"$gte": search.created_after}
+        
+        # Execute the query with pagination
+        cursor = Tile.find(query).skip(search.offset).limit(search.limit)
+        tiles = await cursor.to_list(length=search.limit)
+        total = await Tile.find(query).count()
+        
+        # Convert to response models
+        results = [TileResponse.from_mongo(tile.dict(by_alias=True)) for tile in tiles]
+        
+        return {
+            "results": results,
+            "total": total,
+            "limit": search.limit,
+            "offset": search.offset
+        }
+        
+    except Exception as e:
+        logging.exception("Error in search_tiles")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error searching tiles: {str(e)}"
+        )

@@ -42,6 +42,35 @@ class TileUpload(BaseModel):
     model_name: str
     collection_name: str
 
+class TileSearch(BaseModel):
+    """Schema for searching tiles."""
+    sku: Optional[str] = None
+    model_name: Optional[str] = None
+    collection_name: Optional[str] = None
+    description: Optional[str] = None
+    created_after: Optional[datetime] = None
+    limit: int = 20
+    offset: int = 0
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "sku": "TILE-123",
+                "model_name": "Classic",
+                "collection_name": "Heritage",
+                "description": "marble look",
+                "limit": 10,
+                "offset": 0
+            }
+        }
+
+class TileSearchResults(BaseModel):
+    """Schema for search results."""
+    results: List[TileResponse]
+    total: int
+    limit: int
+    offset: int
+
 class MatchResponse(BaseModel):
     """Schema for returning match results."""
     query_filename: str
