@@ -32,6 +32,13 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.pnpm-debug.log*
 
+# Next.js SWC binaries
+**/node_modules/@next/swc-*/
+
+# Node version manager installers
+*-setup.exe
+nvm-setup.exe
+
 # Python (in /backend, /ml)
 # =========================
 __pycache__/
