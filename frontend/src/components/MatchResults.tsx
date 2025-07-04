@@ -5,9 +5,10 @@ import { MatchResultItem } from '@/types/match';
 interface MatchResultsProps {
   results: MatchResultItem[];
   isLoading?: boolean;
+  error?: string | null;
 }
 
-const MatchResults: React.FC<MatchResultsProps> = ({ results, isLoading = false }) => {
+const MatchResults: React.FC<MatchResultsProps> = ({ results = [], isLoading = false, error = null }) => {
   if (isLoading) {
     return (
       <div className="mt-8 space-y-4">

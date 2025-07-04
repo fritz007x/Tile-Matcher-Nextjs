@@ -1,11 +1,12 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { ApiResponse, ApiError, AuthToken, LoginCredentials, RegisterData, PasswordResetRequest, PasswordResetConfirm, MatchResult } from '@/types';
+import { ApiResponse, ApiError, AuthToken, LoginCredentials, RegisterData, PasswordResetRequest, PasswordResetConfirm } from '@/types';
+import { MatchResultItem } from '@/types/match';
 import { APP_CONFIG } from '@/config';
 import AuthService from './auth';
 
 // Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
-  baseURL: APP_CONFIG.API_URL,
+  baseURL: APP_CONFIG.apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -30,7 +31,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle token expiration
     if (error.response?.status === 401) {
-      AuthService.logout();
+      AuthService.signOut();
       window.location.href = '/login?session=expired';
     }
     return Promise.reject(error);
@@ -96,7 +97,7 @@ const auth = {
 // Tile matching related API endpoints
 const matching = {
   match: (formData: FormData) => 
-    apiRequest<MatchResult>({
+    apiRequest<MatchResultItem[]>({
       method: 'POST',
       url: '/api/matching/match',
       data: formData,
@@ -106,15 +107,15 @@ const matching = {
     }),
     
   getHistory: () => 
-    apiRequest<MatchResult[]>({
+    apiRequest<MatchResultItem[]>({
       method: 'GET',
       url: '/api/matching/history'
     }),
     
   getMatchById: (id: string) => 
-    apiRequest<MatchResult>({
+    apiRequest<MatchResultItem>({
       method: 'GET',
-      url: `/api/matching/${id}`
+      url: `/api/matching/history/${id}`
     }),
     
   saveMatch: (id: string) => 
@@ -153,7 +154,7 @@ const user = {
     }),
     
   getSavedMatches: () => 
-    apiRequest<MatchResult[]>({
+    apiRequest<MatchResultItem[]>({
       method: 'GET',
       url: '/api/user/saved-matches'
     }),

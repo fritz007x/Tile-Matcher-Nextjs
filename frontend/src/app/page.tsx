@@ -5,7 +5,8 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ImageUpload from '@/components/ImageUpload';
 import MatchResults from '@/components/MatchResults';
-import { apiService, MatchResultItem } from '@/lib/api';
+import { apiService } from '@/lib/api';
+import { MatchResultItem } from '@/types/match';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,8 +21,30 @@ export default function Home() {
       setError(null);
       
       // Call the API to match the uploaded image
-      const results = await apiService.tiles.matchImage(file);
-      setMatchResults(results);
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await apiService.matching.match(formData);
+      // The API returns an array of MatchResultItem
+      if (!response.data) {
+        throw new Error('No data received from the server');
+      }
+      
+      // Ensure we have an array
+      const results = Array.isArray(response.data) ? response.data : [response.data];
+      
+      // Transform the data if needed to match our frontend type
+      const formattedResults = results.map(item => ({
+        ...item,
+        // Add any necessary transformations here
+        // For example, ensure imageUrl is set correctly
+        imageUrl: item.imageUrl || item.metadata?.image_url || '',
+        // Ensure similarity is a number
+        similarity: typeof item.similarity === 'number' ? item.similarity : (item.score || 0) * 100,
+        // Ensure metadata exists
+        metadata: item.metadata || {}
+      }));
+      
+      setMatchResults(formattedResults);
     } catch (err) {
       console.error('Error matching image:', err);
       setError('Failed to match the image. Please try again.');

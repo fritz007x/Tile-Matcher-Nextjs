@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { MatchResultItem } from '@/types';
+import { MatchResultItem } from '@/types/match';
 import { withAuth } from '@/lib/auth';
 
 interface SavedMatch {
@@ -32,6 +32,8 @@ function DashboardPage() {
       results: [
         {
           tile_id: 'tile123',
+          imageUrl: '/placeholder-tile.jpg',
+          similarity: 95,
           score: 0.95,
           method: 'ViT',
           metadata: {
@@ -50,6 +52,8 @@ function DashboardPage() {
       results: [
         {
           tile_id: 'tile456',
+          imageUrl: '/placeholder-tile-2.jpg',
+          similarity: 87,
           score: 0.87,
           method: 'SIFT',
           metadata: {

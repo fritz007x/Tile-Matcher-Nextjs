@@ -35,24 +35,10 @@ export interface PasswordResetConfirm {
 }
 
 // Tile matching related types
-export interface MatchResultItem {
-  tile_id: string;
-  score: number;
-  method: string;
-  metadata: {
-    sku: string;
-    model_name: string;
-    collection_name: string;
-    image_url: string;
-    [key: string]: any;
-  };
-}
-
 export interface MatchResult {
-  id: string;
-  createdAt: string;
-  queryImage: string;
-  results: MatchResultItem[];
+  query_id: string;
+  timestamp: string;
+  results: import('./match').MatchResultItem[];
 }
 
 // API response types

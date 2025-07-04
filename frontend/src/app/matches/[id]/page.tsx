@@ -8,7 +8,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { apiService } from '@/lib/api';
-import { MatchResultItem } from '@/types';
+import { MatchResultItem } from '@/types/match';
 import AuthService from '@/lib/auth';
 
 interface MatchDetailPageProps {
@@ -55,6 +55,8 @@ export default function MatchDetailPage({ params }: MatchDetailPageProps) {
           results: [
             {
               tile_id: 'tile123',
+              imageUrl: '/placeholder-tile.jpg',
+              similarity: 95,
               score: 0.95,
               method: 'ViT',
               metadata: {
@@ -66,6 +68,8 @@ export default function MatchDetailPage({ params }: MatchDetailPageProps) {
             },
             {
               tile_id: 'tile456',
+              imageUrl: '/placeholder-tile-2.jpg',
+              similarity: 87,
               score: 0.87,
               method: 'SIFT',
               metadata: {
@@ -77,6 +81,8 @@ export default function MatchDetailPage({ params }: MatchDetailPageProps) {
             },
             {
               tile_id: 'tile789',
+              imageUrl: '/placeholder-tile-3.jpg',
+              similarity: 82,
               score: 0.82,
               method: 'ORB',
               metadata: {
@@ -255,8 +261,8 @@ export default function MatchDetailPage({ params }: MatchDetailPageProps) {
                       <div className="w-full md:w-1/3">
                         <div className="aspect-square relative rounded-md overflow-hidden">
                           <Image 
-                            src={result.metadata.image_url}
-                            alt={result.metadata.model_name} 
+                            src={result.metadata?.image_url || '/placeholder-tile.jpg'}
+                            alt={result.metadata?.model_name || 'Tile image'} 
                             fill 
                             className="object-cover"
                             placeholder="blur"
@@ -301,7 +307,7 @@ export default function MatchDetailPage({ params }: MatchDetailPageProps) {
                         
                         <div className="flex flex-wrap gap-3 mt-auto pt-4">
                           <button 
-                            onClick={() => handleRequestSample(result.metadata.sku)}
+                            onClick={() => handleRequestSample(result.metadata?.sku || '')}
                             className="btn-primary"
                           >
                             Request Sample
