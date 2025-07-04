@@ -30,7 +30,7 @@ class MatchResult:
     metadata: dict
 
 class TileMatchingService:
-    def __init__(self, methods: List[str] = ['sift', 'orb', 'kaze', 'vit']):
+    def __init__(self, methods: List[str] = ['sift', 'orb', 'kaze', 'vit', 'clip']):
         """
         Initialize the tile matching service with specified feature extraction methods.
         
@@ -114,37 +114,23 @@ class TileMatchingService:
                             metadata=self.tile_metadata.get(tile_id, {})
                         ))
                     except Exception as e:
-                        logger.error(f"Error matching with {method} for tile {tile_id}: {str(e)}")
-                        
+                        logger.error(f"Error matching {method} for tile {tile_id}: {str(e)}")
+                
+                # If using FAISS-indexed method and FAISS is available, try FAISS matching
+                if hasattr(self, 'index_method') and method == self.index_method and \
+                   FAISS_AVAILABLE and self.index is not None:
+                    try:
+                        faiss_results = self.search_with_faiss(query_features, top_k)
+                        all_results.extend(faiss_results)
+                    except Exception as e:
+                        logger.error(f"Error using FAISS search: {str(e)}")
+                
             except Exception as e:
-                logger.error(f"Error processing with {method}: {str(e)}")
+                logger.error(f"Error processing method {method}: {str(e)}")
         
-        # Group results by tile_id and calculate weighted average score
-        tile_scores = {}
-        for result in all_results:
-            if result.tile_id not in tile_scores:
-                tile_scores[result.tile_id] = {
-                    'scores': [],
-                    'methods': [],
-                    'metadata': result.metadata
-                }
-            tile_scores[result.tile_id]['scores'].append(result.score)
-            tile_scores[result.tile_id]['methods'].append(result.method)
-        
-        # Calculate weighted average score for each tile
-        final_results = []
-        for tile_id, data in tile_scores.items():
-            avg_score = np.mean(data['scores'])
-            final_results.append(MatchResult(
-                tile_id=tile_id,
-                score=avg_score,
-                method=", ".join(data['methods']),
-                metadata=data['metadata']
-            ))
-        
-        # Sort by score in descending order and return top_k results
-        final_results.sort(key=lambda x: x.score, reverse=True)
-        return final_results[:top_k]
+        # Sort by score (highest first) and return top_k
+        sorted_results = sorted(all_results, key=lambda x: x.score, reverse=True)
+        return sorted_results[:top_k]
     
     def build_faiss_index(self):
         """
@@ -156,42 +142,50 @@ class TileMatchingService:
             logger.warning("FAISS is not available - skipping index building")
             return
             
-        # Only implemented for ViT features for now
-        if 'vit' not in self.extractors:
-            logger.warning("FAISS index is only supported for ViT features")
+        # Determine which extractor to use for FAISS (prefer CLIP if available, otherwise ViT)
+        index_method = None
+        if 'clip' in self.extractors:
+            index_method = 'clip'
+            logger.info("Using CLIP features for FAISS indexing")
+        elif 'vit' in self.extractors:
+            index_method = 'vit'
+            logger.info("Using ViT features for FAISS indexing")
+        else:
+            logger.warning("Neither CLIP nor ViT extractors are available for FAISS indexing")
             return
             
-        # Get all ViT features
-        vit_features = []
+        # Get all features from the selected method
+        features_list = []
         tile_ids = []
-        extractor = self.extractors['vit']
+        extractor = self.extractors[index_method]
         
-        for tile_id, features in self.tile_features['vit'].items():
+        for tile_id, features in self.tile_features[index_method].items():
             if 'features' in features:
-                vit_features.append(features['features'])
+                features_list.append(features['features'])
                 tile_ids.append(tile_id)
         
-        if not vit_features:
-            logger.warning("No ViT features found for building FAISS index")
+        if not features_list:
+            logger.warning(f"No {index_method} features found for building FAISS index")
             return
             
         # Convert to numpy array
-        vit_features = np.array(vit_features).astype('float32')
+        features_array = np.array(features_list).astype('float32')
         
         # Build and train the index
-        dimension = vit_features.shape[1]
+        dimension = features_array.shape[1]
         self.index = faiss.IndexFlatL2(dimension)
-        self.index.add(vit_features)
+        self.index.add(features_array)
         self.index_tile_ids = tile_ids
+        self.index_method = index_method
         
-        logger.info(f"Built FAISS index with {len(tile_ids)} vectors")
+        logger.info(f"Built FAISS index with {len(tile_ids)} vectors using {index_method} features")
     
     def search_with_faiss(self, query_features: np.ndarray, top_k: int = 5) -> List[MatchResult]:
         """
         Search for similar tiles using FAISS index.
         
         Args:
-            query_features: Query features from ViT extractor
+            query_features: Query features from ViT or CLIP extractor
             top_k: Number of results to return
             
         Returns:
@@ -202,12 +196,12 @@ class TileMatchingService:
             logger.warning("FAISS is not available - unable to perform index search")
             return []
             
-        if self.index is None or 'vit' not in self.extractors:
-            logger.warning("FAISS index not built or ViT extractor not available")
+        if self.index is None or not hasattr(self, 'index_method'):
+            logger.warning("FAISS index not built")
             return []
             
         if 'features' not in query_features:
-            logger.error("Query features must be extracted with ViT extractor")
+            logger.error(f"Query features must be extracted with {self.index_method} extractor")
             return []
             
         # Convert query features to numpy array
@@ -229,7 +223,7 @@ class TileMatchingService:
             results.append(MatchResult(
                 tile_id=tile_id,
                 score=score,
-                method="vit_faiss",
+                method=f"{self.index_method}_faiss",
                 metadata=self.tile_metadata.get(tile_id, {})
             ))
         

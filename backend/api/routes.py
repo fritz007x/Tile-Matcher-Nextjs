@@ -143,11 +143,14 @@ async def match_tile(
         )
 
 @router.get("/methods", response_model=List[str])
-async def get_available_methods():
+async def get_available_methods(
+    matching_service: TileMatchingService = Depends(get_matching_service)
+):
     """
     Get list of available matching methods
     """
-    return ["color_histogram", "sift"]
+    # Return the actual methods available in the matching service
+    return list(matching_service.methods)
 
 @router.post("/search", response_model=TileSearchResults)
 async def search_tiles(

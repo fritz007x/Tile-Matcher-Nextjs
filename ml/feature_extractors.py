@@ -3,7 +3,7 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional, Union
 from PIL import Image
 import torch
-from transformers import ViTFeatureExtractor, ViTModel
+from transformers import ViTFeatureExtractor, ViTModel, CLIPProcessor, CLIPModel
 import torch.nn.functional as F
 from dataclasses import dataclass
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FeatureExtractorConfig:
-    method: str  # 'sift', 'orb', 'kaze', 'vit'
+    method: str  # 'sift', 'orb', 'kaze', 'vit', 'clip'
     n_features: int = 1000
     match_threshold: float = 0.7
 
@@ -196,6 +196,65 @@ class ViTExtractor(BaseFeatureExtractor):
         similarity = F.cosine_similarity(tensor1, tensor2)
         return float(similarity[0])
 
+
+class CLIPExtractor(BaseFeatureExtractor):
+    def __init__(self, config: FeatureExtractorConfig):
+        super().__init__(config)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        logger.info(f"Using device: {self.device}")
+        
+        # Load pre-trained CLIP model
+        model_name = "openai/clip-vit-base-patch32"
+        logger.info(f"Loading CLIP model: {model_name}")
+        self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.model = CLIPModel.from_pretrained(model_name).to(self.device)
+        self.model.eval()
+    
+    def extract(self, image: np.ndarray) -> Dict:
+        # Convert to RGB if needed (CLIP expects RGB format)
+        if len(image.shape) == 2:  # Grayscale
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 4:  # RGBA
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        elif image.shape[2] == 1:  # Single channel
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 3 and image.dtype == np.uint8:  # BGR (OpenCV default)
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        else:  # Already RGB
+            image_rgb = image
+            
+        # Convert to PIL Image which is expected by the CLIP processor
+        pil_image = Image.fromarray(image_rgb)
+        
+        # Preprocess and extract features
+        inputs = self.processor(images=pil_image, return_tensors="pt", padding=True).to(self.device)
+        with torch.no_grad():
+            outputs = self.model.get_image_features(**inputs)
+            
+        # Extract the image features
+        features = outputs.cpu().numpy()[0]
+        return {
+            'features': features,
+            'tensor': torch.tensor(features).unsqueeze(0)
+        }
+    
+    def match(self, features1: Dict, features2: Dict) -> float:
+        # Calculate cosine similarity between feature vectors
+        if 'tensor' not in features1 or 'tensor' not in features2:
+            return 0.0
+            
+        # Ensure tensors are on the same device
+        tensor1 = features1['tensor'].to(self.device)
+        tensor2 = features2['tensor'].to(self.device)
+        
+        # Normalize the feature vectors
+        tensor1 = F.normalize(tensor1, p=2, dim=1)
+        tensor2 = F.normalize(tensor2, p=2, dim=1)
+        
+        # Calculate cosine similarity
+        similarity = F.cosine_similarity(tensor1, tensor2)
+        return float(similarity[0])
+
 def get_feature_extractor(method: str, **kwargs) -> BaseFeatureExtractor:
     """Factory function to get the appropriate feature extractor"""
     config = FeatureExtractorConfig(method=method, **kwargs)
@@ -208,5 +267,7 @@ def get_feature_extractor(method: str, **kwargs) -> BaseFeatureExtractor:
         return KAZEExtractor(config)
     elif method == 'vit':
         return ViTExtractor(config)
+    elif method == 'clip':
+        return CLIPExtractor(config)
     else:
         raise ValueError(f"Unsupported feature extraction method: {method}")
