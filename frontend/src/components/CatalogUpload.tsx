@@ -13,7 +13,8 @@ interface TileMetadata {
   description?: string;
 }
 
-interface UploadedFile extends File {
+interface UploadedFile {
+  rawFile: File;
   preview: string;
   uploadProgress: number;
   status: 'pending' | 'uploading' | 'success' | 'error';
@@ -30,6 +31,8 @@ interface CatalogUploadProps {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Ensure we have exactly one `/api` segment in the base URL
+const API_PREFIX = API_URL.endsWith('/api') ? API_URL : `${API_URL.replace(/\/$/, '')}/api`;
 
 export default function CatalogUpload({ 
   onUploadComplete,
@@ -52,21 +55,23 @@ export default function CatalogUpload({
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0 || isDisabled) return;
     
-    const newFiles = acceptedFiles.slice(0, maxFiles - files.length).map(file => ({
-      ...file,
-      preview: URL.createObjectURL(file),
-      uploadProgress: 0,
-      status: 'pending' as const,
-      metadata: {
-        sku: '',
-        modelName: '',
-        collectionName: '',
-        description: ''
-      }
-    }));
+    const newFiles: UploadedFile[] = acceptedFiles
+      .slice(0, maxFiles - files.length)
+      .map((original) => ({
+        rawFile: original,
+        preview: URL.createObjectURL(original),
+        uploadProgress: 0,
+        status: 'pending' as const,
+        metadata: {
+          sku: '',
+          modelName: '',
+          collectionName: '',
+          description: ''
+        }
+      }));
     
     setFiles(prev => [...prev, ...newFiles].slice(0, maxFiles));
-  }, [onImagesUploaded, isDisabled, maxFiles]);
+  }, [files, isDisabled, maxFiles]);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -115,7 +120,7 @@ export default function CatalogUpload({
     if (!file.metadata) return;
     
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file.rawFile, file.rawFile.name);
     formData.append('sku', file.metadata.sku);
     formData.append('model_name', file.metadata.modelName);
     formData.append('collection_name', file.metadata.collectionName);
@@ -127,11 +132,13 @@ export default function CatalogUpload({
       // Update file status to uploading
       updateFileStatus(index, 'uploading');
       
-      const response = await fetch(`${API_URL}/api/matching/upload`, {
+      const headersObj: Record<string, string> = {};
+      if (session?.accessToken) {
+        headersObj['Authorization'] = `Bearer ${session.accessToken}`;
+      }
+      const response = await fetch(`${API_PREFIX}/matching/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.accessToken}`
-        },
+        headers: headersObj,
         body: formData,
       });
       
