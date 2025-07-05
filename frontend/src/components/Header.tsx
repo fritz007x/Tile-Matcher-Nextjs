@@ -41,6 +41,9 @@ export default function Header() {
                 <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors">
                   Dashboard
                 </Link>
+                <Link href="/catalog" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Catalog
+                </Link>
                 <button onClick={handleSignOut} className="btn-secondary">
                   Sign Out
                 </button>
@@ -100,6 +103,7 @@ export default function Header() {
             {status === 'authenticated' ? (
               <>
                 <Link href="/dashboard" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>Dashboard</Link>
+                <Link href="/catalog" className="block py-2 text-gray-700 hover:text-blue-600 transition-colors" onClick={toggleMenu}>Catalog</Link>
                 <button 
                   onClick={() => { toggleMenu(); handleSignOut(); }}
                   className="w-full text-left py-2 text-red-600 font-medium"
