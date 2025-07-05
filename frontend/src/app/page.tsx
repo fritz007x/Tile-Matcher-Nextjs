@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ImageUpload from '@/components/ImageUpload';
 import MatchResults from '@/components/MatchResults';
@@ -56,7 +55,6 @@ export default function Home() {
   
   return (
     <main className="flex min-h-screen flex-col">
-      <Header />
       
       <div className="container mx-auto px-4 flex-grow py-12">
         <div className="max-w-4xl mx-auto">
