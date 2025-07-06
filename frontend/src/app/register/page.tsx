@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { signIn } from 'next-auth/react';
@@ -70,15 +69,17 @@ export default function RegisterPage() {
         password: formData.password,
       });
       
-      // Redirect to login page with success message
-      router.push('/login?registered=success');
+      // Redirect to login page with success message and first name
+      const firstName = formData.name.split(' ')[0];
+      router.push(`/login?registered=success&name=${encodeURIComponent(firstName)}`);
     } catch (err: any) {
       console.error('Registration error:', err);
-      setError(
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to register. Please try again.'
-      );
+      // Friendly duplicate-email handling
+      if (err.status === 409 || err.response?.status === 409) {
+        setError('Email already in use. Please try a different email address or sign in if you already have an account.');
+        return;
+      }
+      setError(err.response?.data?.detail || err.message || 'Failed to register. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +92,6 @@ export default function RegisterPage() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <Header />
       
       <div className="flex-grow container mx-auto px-4 py-12">
         <div className="max-w-md mx-auto">

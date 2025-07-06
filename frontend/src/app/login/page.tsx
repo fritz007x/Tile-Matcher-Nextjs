@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { signIn } from 'next-auth/react';
@@ -21,6 +20,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const registered = searchParams.get('registered') === 'success';
+  const firstName = searchParams.get('name');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -72,7 +72,6 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <Header />
       
       <div className="flex-grow container mx-auto px-4 py-12">
         <div className="max-w-md mx-auto">
@@ -80,8 +79,17 @@ export default function LoginPage() {
           
           <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
             {registered && (
-              <div className="p-3 mb-4 bg-green-50 text-green-700 rounded-md text-sm">
-                Registration successful! Please sign in with your credentials.
+              <div className="p-4 mb-4 flex items-start gap-3 bg-green-50 border border-green-200 rounded-md">
+                <span className="text-2xl">✅</span>
+                <div className="text-sm text-green-800">
+                  <p className="font-semibold">Your account has been created successfully!</p>
+                  {firstName && (
+                    <p className="mt-1">Welcome aboard, {firstName}!</p>
+                  )}
+                  {!firstName && (
+                    <p className="mt-1">Welcome aboard!</p>
+                  )}
+                </div>
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">

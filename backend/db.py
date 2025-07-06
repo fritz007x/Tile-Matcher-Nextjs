@@ -7,6 +7,7 @@ from beanie import init_beanie
 from dotenv import load_dotenv
 
 from backend.models.tile import Tile
+from backend.models.user import User
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ async def init_db():
         logger.info("Successfully pinged the database server.")
 
         # Initialize Beanie with the specific database from the URI
-        await init_beanie(database=client[db_name], document_models=[Tile])
+        await init_beanie(database=client[db_name], document_models=[Tile, User])
         logger.info("Database connection initialized and Beanie ODM is ready.")
 
     except Exception as e:
