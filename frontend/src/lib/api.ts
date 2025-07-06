@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { ApiResponse, ApiError, AuthToken, LoginCredentials, RegisterData, PasswordResetRequest, PasswordResetConfirm } from '@/types';
-import { MatchResultItem } from '@/types/match';
+import { MatchResultItem, BackendMatchResponse } from '@/types/match';
 import { APP_CONFIG } from '@/config';
 import AuthService from './auth';
 
@@ -104,12 +104,10 @@ const auth = {
 // Tile matching related API endpoints
 const matching = {
   match: (formData: FormData) => 
-    apiRequest<MatchResultItem[]>({
+    apiRequest<BackendMatchResponse>({
       method: 'POST',
       url: '/matching/match',
       data: formData,
-      // headers: { 'Content-Type': undefined },
-
     }),
     
   getHistory: () => 

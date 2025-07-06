@@ -8,6 +8,7 @@ class TileBase(BaseModel):
     model_name: str
     collection_name: str
     image_path: str
+    content_type: str = "image/jpeg"
     created_at: datetime
     updated_at: datetime
     description: Optional[str] = None
@@ -21,13 +22,26 @@ from bson import ObjectId
 class TileResponse(TileBase):
     """Schema for returning a tile from the API."""
     id: str
+    has_image_data: bool = False
     
     class Config:
         from_attributes = True  # Replaces orm_mode in Pydantic v2
         populate_by_name = True
         json_encoders = {
-            ObjectId: str
+            ObjectId: str,
+            'bytes': lambda v: v.decode('utf-8') if isinstance(v, bytes) else v
         }
+    
+    @classmethod
+    def from_mongo(cls, data: dict) -> 'TileResponse':
+        """Convert MongoDB document to TileResponse."""
+        if isinstance(data.get('_id'), ObjectId):
+            data['id'] = str(data['_id'])
+        if 'image_data' in data and data['image_data'] is not None:
+            data['has_image_data'] = True
+            # Don't include the actual binary data in the response by default
+            data.pop('image_data', None)
+        return cls(**data)
         
     @classmethod
     def from_mongo(cls, data: dict):
