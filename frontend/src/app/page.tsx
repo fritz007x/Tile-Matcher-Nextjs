@@ -7,11 +7,32 @@ import MatchResults from '@/components/MatchResults';
 import { apiService } from '@/lib/api';
 import { MatchResultItem } from '@/types/match';
 
+// Define the backend response type
+interface BackendMatchResult {
+  tile_id: string;
+  score: number;
+  method: string;
+  metadata: {
+    sku?: string;
+    model_name?: string;
+    collection_name?: string;
+    image_url?: string;
+  };
+  sku?: string;
+  model_name?: string;
+  collection_name?: string;
+}
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matchResults, setMatchResults] = useState<MatchResultItem[]>([]);
-  
+
+  // Additional state for matching parameters
+  const [topK, setTopK] = useState(3);
+  const [threshold, setThreshold] = useState(0.0);
+  const [method, setMethod] = useState<string>('vit');
+
   const handleImageUpload = async (file: File) => {
     if (!file) return;
     
@@ -20,8 +41,20 @@ export default function Home() {
       setError(null);
       
       // Call the API to match the uploaded image
+      console.log('Starting...');
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file);
+      formData.append('top_k', topK.toString());
+      formData.append('threshold', threshold.toString());
+      if (method) {
+        formData.append('method', method);
+      }
+
+      // Debug: Log the FormData contents
+      console.log('Starting...');
+for (let [key, value] of formData.entries()) {
+  console.log(key, value);
+}
       const response = await apiService.matching.match(formData);
       // The API returns an array of MatchResultItem
       if (!response.data) {

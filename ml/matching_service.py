@@ -36,7 +36,7 @@ class TileMatchingService:
         
         Args:
             methods: List of methods to use for feature extraction. 
-                    Options: 'sift', 'orb', 'kaze', 'vit'
+                    Options: 'sift', 'orb', 'kaze', 'vit', 'clip'
         """
         self.methods = methods
         self.extractors = {method: get_feature_extractor(method) for method in methods}

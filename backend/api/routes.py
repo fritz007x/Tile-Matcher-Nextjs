@@ -1,8 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, status
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request, status
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from datetime import datetime
 import numpy as np
+import tempfile
+import os
 import cv2
 import os
 import logging
@@ -103,16 +105,35 @@ async def upload_tile(
                 detail=f"Error uploading tile: {error_detail}"
             )
 
-@router.post("/match", response_model=List[dict])
+@router.post("/match", response_model=MatchResponse)
 async def match_tile(
     file: UploadFile = File(...),
     top_k: int = Form(5),
+    method: Optional[str] = Form('vit'),
+    threshold: Optional[float] = Form(0.7),
     matching_service: TileMatchingService = Depends(get_matching_service)
 ):
     """
     Match an uploaded tile image with the catalog
     """
     try:
+        # Debug logging
+        logging.info(f"Match request - file: {file.filename if file else 'None'}, top_k: {top_k}, method: {method}, threshold: {threshold}")
+        
+        # ✅ NEW - Validate top_k parameter
+        if top_k < 1 or top_k > 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="top_k must be between 1 and 10"
+            )
+        
+        # ✅ NEW - Validate threshold parameter
+        if threshold < 0.0 or threshold > 1.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="threshold must be between 0.0 and 1.0"
+            )
+        
         # Read image file
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
@@ -124,17 +145,60 @@ async def match_tile(
                 detail="Could not read image"
             )
         
-        # Match image
-        results = matching_service.match_image(image, top_k=top_k)
+        # ✅ NEW - Log image properties for debugging
+        logging.info(f"Processing image: shape={image.shape}, dtype={image.dtype}")
         
-        # Convert results to dict
-        return [{
-            "tile_id": r.tile_id,
-            "score": float(r.score),
-            "method": r.method,
-            "metadata": r.metadata
-        } for r in results]
-        
+        # Save the uploaded image to a temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+        try:
+            temp_file.write(file.file.read())
+            temp_file.close()
+            
+            # Call the matching service with the correct method name
+            results = matching_service.find_similar_tiles(
+                query_image_path=temp_file.name,
+                top_k=top_k
+            )
+            
+            # Filter results by threshold and format the response
+            matches = []
+            scores = []
+            
+            for r in results:
+                if float(r['similarity']) >= threshold:
+                    # Create a TileResponse-like dictionary
+                    tile_data = {
+                        "id": r['tile_id'],
+                        "sku": r.get('metadata', {}).get('sku', ''),
+                        "model_name": r.get('metadata', {}).get('model_name', ''),
+                        "collection_name": r.get('metadata', {}).get('collection_name', ''),
+                        "image_path": r.get('metadata', {}).get('image_path', ''),
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow(),
+                    }
+                    matches.append(tile_data)
+                    scores.append(float(r['similarity']))
+            
+            return {
+                "query_filename": file.filename,
+                "matches": matches,
+                "scores": scores
+            }
+            
+        except Exception as e:
+            logging.error(f"Error processing image: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error processing image: {str(e)}"
+            )
+            
+        finally:
+            # Clean up the temporary file
+            try:
+                os.unlink(temp_file.name)
+            except Exception as e:
+                logging.warning(f"Failed to delete temporary file {temp_file.name}: {str(e)}")
+            
     except Exception as e:
         logging.exception("Error in match_tile")
         raise HTTPException(

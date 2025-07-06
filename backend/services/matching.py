@@ -10,6 +10,8 @@ class TileMatchingService:
         self.tiles: Dict[str, dict] = {}
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initialized TileMatchingService")
+        # Define available matching methods
+        self.methods = ['vit', 'color_hist', 'orb']  # Example methods
 
     def add_tile(self, tile_id: str, image_path: str, metadata: dict):
         """

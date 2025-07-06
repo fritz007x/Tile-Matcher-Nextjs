@@ -7,9 +7,9 @@ import AuthService from './auth';
 // Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
   baseURL: APP_CONFIG.apiBaseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // headers: {
+  //   'Content-Type': 'application/json',
+  // },
   timeout: 30000, // 30 seconds
 });
 
@@ -20,6 +20,13 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Only set Content-Type to application/json if it's not FormData
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    // For FormData, let axios handle Content-Type automatically
+    
     return config;
   },
   (error) => Promise.reject(error)
@@ -99,35 +106,34 @@ const matching = {
   match: (formData: FormData) => 
     apiRequest<MatchResultItem[]>({
       method: 'POST',
-      url: '/api/matching/match',
+      url: '/matching/match',
       data: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      // headers: { 'Content-Type': undefined },
+
     }),
     
   getHistory: () => 
     apiRequest<MatchResultItem[]>({
       method: 'GET',
-      url: '/api/matching/history'
+      url: '/matching/history'
     }),
     
   getMatchById: (id: string) => 
     apiRequest<MatchResultItem>({
       method: 'GET',
-      url: `/api/matching/history/${id}`
+      url: `/matching/history/${id}`
     }),
     
   saveMatch: (id: string) => 
     apiRequest<{ message: string }>({
       method: 'POST',
-      url: `/api/matching/${id}/save`
+      url: `/matching/${id}/save`
     }),
     
   deleteMatch: (id: string) => 
     apiRequest<{ message: string }>({
       method: 'DELETE',
-      url: `/api/matching/${id}`
+      url: `/matching/${id}`
     })
 };
 
