@@ -55,7 +55,8 @@ async def register_user(payload: RegisterRequest):
     logger.info("Register request for %s", payload.email)
 
     # Check if user already exists
-    existing = await User.find_one(User.email == payload.email)
+    normalized_email = payload.email.lower()
+    existing = await User.find_one(User.email == normalized_email)
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User with this email already exists")
 
@@ -63,7 +64,7 @@ async def register_user(payload: RegisterRequest):
     hashed = pwd_context.hash(payload.password)
 
     # Create and save user
-    user = User(email=payload.email, name=payload.name, hashed_password=hashed)
+    user = User(email=normalized_email, name=payload.name, hashed_password=hashed)
     await user.insert()
 
     return RegisterResponse(email=user.email, name=user.name, user_id=str(user.id))
@@ -72,9 +73,10 @@ async def register_user(payload: RegisterRequest):
 @public_router.post("/token", response_model=TokenResponse)
 async def login_for_access_token(payload: TokenRequest):
     """Credential login compatible with NextAuth."""
-    logger.info("Login attempt for %s", payload.username)
+    normalized_username = payload.username.lower()
+    logger.info("Login attempt for %s", normalized_username)
 
-    user = await User.find_one(User.email == payload.username)
+    user = await User.find_one(User.email == normalized_username)
     if not user or not pwd_context.verify(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
 
