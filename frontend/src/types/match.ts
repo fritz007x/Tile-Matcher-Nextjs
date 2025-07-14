@@ -14,6 +14,7 @@ export interface MatchResultItem {
     collection_name?: string;
     sku?: string;
     image_url?: string;
+    description?: string;
     [key: string]: any;
   };
 }
@@ -23,7 +24,7 @@ export interface BackendMatchItem {
   sku: string;
   model_name: string;
   collection_name: string;
-  image_path: string;
+  image_path?: string;
   created_at: string;
   updated_at: string;
   description: string | null;

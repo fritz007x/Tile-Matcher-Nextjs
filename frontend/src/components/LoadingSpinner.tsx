@@ -6,6 +6,18 @@ interface LoadingSpinnerProps {
   fullScreen?: boolean;
 }
 
+interface LoadingCardProps {
+  className?: string;
+}
+
+export function LoadingCard({ className = '' }: LoadingCardProps) {
+  return (
+    <div className={`bg-gray-200 animate-pulse rounded ${className}`}>
+      <div className="h-full w-full"></div>
+    </div>
+  );
+}
+
 export default function LoadingSpinner({ 
   size = 'medium', 
   text = 'Loading...', 

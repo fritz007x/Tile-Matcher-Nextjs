@@ -65,7 +65,10 @@ export default function Home() {
             sku: match.sku || 'N/A',
             model_name: match.model_name || 'Unknown',
             collection_name: match.collection_name || 'Unknown',
-            image_url: match.image_path
+            image_url: match.image_path,
+            description: match.description || undefined,
+            created_at: match.created_at,
+            updated_at: match.updated_at
           }
         };
         
@@ -92,6 +95,19 @@ export default function Home() {
     }
   };
   
+  // Available matching methods - These should match what the backend supports
+  const availableMethods = [
+    { id: 'color_hist', name: 'Color Histogram' },
+    { id: 'orb', name: 'ORB Features' },
+    { id: 'vit_simple', name: 'Vision Transformer (Simple)' },
+    { id: 'vit_multi_layer', name: 'Vision Transformer (Multi-Layer)' },
+    { id: 'vit_multi_scale', name: 'Vision Transformer (Multi-Scale)' },
+    { id: 'ensemble', name: 'Ensemble (Multiple Methods)' }
+  ];
+  
+  // Available top_k options
+  const topKOptions = [1, 3, 5, 10, 15, 20];
+  
   return (
     <main className="flex min-h-screen flex-col">
       
@@ -101,6 +117,82 @@ export default function Home() {
           <p className="text-center text-lg text-gray-600 mb-12">
             Upload an image of a tile to find the best matches in our catalog
           </p>
+          
+          {/* Matching Options Panel */}
+          <div className="mb-8 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Matching Options</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Method Selection */}
+              <div>
+                <label htmlFor="method-select" className="block text-sm font-medium text-gray-700 mb-1">
+                  Matching Method
+                </label>
+                <select
+                  id="method-select"
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                  className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {availableMethods.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {method === 'color_hist' && "Compares color distributions between images."}
+                  {method === 'orb' && "Detects key points and features in the images."}
+                  {method === 'vit_simple' && "Simple Vision Transformer for basic visual pattern recognition."}
+                  {method === 'vit_multi_layer' && "Multi-layer Vision Transformer for detailed feature extraction."}
+                  {method === 'vit_multi_scale' && "Multi-scale Vision Transformer for robust pattern matching."}
+                  {method === 'ensemble' && "Combines multiple methods for best accuracy."}
+                </p>
+              </div>
+              
+              {/* Top K Selection */}
+              <div>
+                <label htmlFor="topk-select" className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Results (Top K): {topK}
+                </label>
+                <select
+                  id="topk-select"
+                  value={topK}
+                  onChange={(e) => setTopK(parseInt(e.target.value))}
+                  className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {topKOptions.map(k => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Maximum number of similar tiles to return.
+                </p>
+              </div>
+              
+              {/* Threshold Slider */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Similarity Threshold: {threshold}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={threshold}
+                  onChange={(e) => setThreshold(parseInt(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Only show results with similarity above this threshold.
+                </p>
+              </div>
+            </div>
+          </div>
           
           <ImageUpload onImageUploaded={handleImageUpload} isDisabled={isLoading} />
           
@@ -117,26 +209,6 @@ export default function Home() {
               {error}
             </div>
           )}
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Similarity Threshold: {threshold}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={threshold}
-              onChange={(e) => setThreshold(parseInt(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
-            </div>
-          </div>
           
           {matchResults.length > 0 && <MatchResults results={matchResults} />}
         </div>
