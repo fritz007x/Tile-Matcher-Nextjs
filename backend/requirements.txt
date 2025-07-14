@@ -1,26 +1,59 @@
+# Core web framework and API
 fastapi==0.104.1
 uvicorn==0.24.0
+
+# Database and ODM
 beanie==1.25.0
+motor==3.3.2
+pymongo==4.6.1  # Kept at 4.6.1 (latest compatible with Python 3.8)
+
+# Configuration and validation
 python-dotenv==1.0.0
 email-validator==2.1.0
-python-multipart==0.0.6
+python-multipart>=0.0.18,<0.1.0  # Updated: 0.0.6 -> 0.0.18+ (CRITICAL FIX for FastAPI compatibility, Python 3.8 compatible)
+
+# Authentication and security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-motor==3.3.2
-pymongo==4.6.1
-numpy>=1.26.4
+
+# Core scientific computing (keeping safe versions)
+numpy>=1.24.0,<1.25.0  # Latest compatible with Python 3.8 (1.24.x series)
+scipy>=1.9.0,<1.10.0  # Latest compatible with Python 3.8 (1.9.x series)
+
+# Computer vision
 opencv-python-headless>=4.7.0
 opencv-contrib-python-headless>=4.7.0
-pillow>=9.5.0
-torch>=2.0.0
-torchvision>=0.15.0
-transformers>=4.30.0
-sentence-transformers>=2.2.0
+pillow>=9.0.0,<10.0.0  # Compatible with Python 3.8
+
+# Machine learning frameworks (CPU-only versions to avoid CUDA dependency issues)
+# NOTE: Install PyTorch and related packages separately to avoid CUDA dependency issues
+# See PYTORCH_CPU_INSTALL.md for detailed instructions
+# torch==2.0.1+cpu  # CPU-only version, Python 3.8 compatible
+# torchvision==0.15.2+cpu  # CPU-only version, matches torch 2.0.x
+# transformers>=4.30.0  # Depends on torch, install after PyTorch CPU
+# sentence-transformers>=2.2.0  # Depends on torch, install after PyTorch CPU
+scikit-learn>=1.1.0,<1.2.0  # Latest compatible with Python 3.8 (1.1.x series)
+
+# NLP and text processing
+ftfy>=6.1.1
+regex==2024.11.6  # Updated: 2022.10.31 -> 2024.11.6 (safe update)
+clip @ git+https://github.com/openai/CLIP.git
+
+# Vector search and indexing
 faiss-cpu>=1.7.0
+
+# File handling and utilities
 python-magic==0.4.27
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-tqdm>=4.65.0
-scikit-learn>=1.2.0
-scipy>=1.10.0
-requests>=2.31.0
+tqdm==4.67.1  # Updated: 4.65.0 -> 4.67.1 (safe update)
+
+# Data validation (keeping v1 for stability)
+pydantic>=1.10.0,<2.0.0  # IMPORTANT: Keep v1 to avoid breaking FastAPI/Beanie
+
+# Web utilities
+werkzeug>=2.3.0,<3.0.0  # Kept at 2.x (latest compatible with Python 3.8)
+
+# Caching (keeping conservative version)
+redis>=5.0.0,<6.0.0  # IMPORTANT: Keep v5 to avoid connection handling changes
+hiredis>=2.2.0
+
+
