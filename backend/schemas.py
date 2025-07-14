@@ -7,7 +7,7 @@ class TileBase(BaseModel):
     sku: str
     model_name: str
     collection_name: str
-    image_path: str
+    image_path: Optional[str] = None
     content_type: str = "image/jpeg"
     created_at: datetime
     updated_at: datetime
@@ -41,13 +41,6 @@ class TileResponse(TileBase):
             data['has_image_data'] = True
             # Don't include the actual binary data in the response by default
             data.pop('image_data', None)
-        return cls(**data)
-        
-    @classmethod
-    def from_mongo(cls, data: dict):
-        """Convert MongoDB document to Pydantic model."""
-        if '_id' in data:
-            data['id'] = str(data['_id'])
         return cls(**data)
 
 class TileUpload(BaseModel):

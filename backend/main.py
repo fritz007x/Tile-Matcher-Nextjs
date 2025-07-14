@@ -24,6 +24,7 @@ from backend.api import routes, auth
 from backend.api.auth import public_router
 from backend.api.dependencies import get_matching_service, get_current_user
 from backend.db import init_db
+from backend.exceptions import TileMatcherException, handle_tile_matcher_exception
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -80,6 +81,19 @@ async def health_check():
     }
 
 # Error handlers
+@app.exception_handler(TileMatcherException)
+async def tile_matcher_exception_handler(request, exc: TileMatcherException):
+    logger.error(f"TileMatcherException: {exc.message}", extra={
+        "error_code": exc.error_code,
+        "details": exc.details,
+        "path": request.url.path
+    })
+    http_exc = handle_tile_matcher_exception(exc)
+    return JSONResponse(
+        status_code=http_exc.status_code,
+        content=http_exc.detail
+    )
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
@@ -89,10 +103,18 @@ async def http_exception_handler(request, exc):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    logger.exception("Unhandled exception occurred")
+    logger.exception("Unhandled exception occurred", extra={
+        "path": request.url.path,
+        "method": request.method,
+        "exception_type": type(exc).__name__
+    })
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal server error"}
+        content={
+            "message": "An unexpected error occurred. Please try again.",
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "details": {}
+        }
     )
 
 # Application startup event
@@ -104,8 +126,12 @@ async def startup_event():
         # Initialize the database connection
         await init_db()
         
+        # Small delay to ensure Beanie is fully initialized
+        import asyncio
+        await asyncio.sleep(0.5)
+        
         # Initialize the matching service
-        get_matching_service()
+        await get_matching_service()
         logger.info("Matching service successfully initialized.")
 
         logger.info("Application startup complete.")
