@@ -52,6 +52,8 @@ export interface ApiError {
   message: string;
   status: number;
   errors?: Record<string, string[]>;
+  errorCode?: string;
+  details?: Record<string, any>;
 }
 
 // Component props

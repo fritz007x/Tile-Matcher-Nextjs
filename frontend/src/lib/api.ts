@@ -55,10 +55,15 @@ const apiRequest = async <T>(config: AxiosRequestConfig): Promise<ApiResponse<T>
       message: response.statusText
     };
   } catch (error: any) {
+    // Handle new structured error format from backend
+    const errorData = error.response?.data;
+    
     const apiError: ApiError = {
-      message: error.response?.data?.message || error.message || 'An error occurred',
+      message: errorData?.message || errorData?.detail?.message || errorData?.detail || error.message || 'An error occurred',
       status: error.response?.status || 500,
-      errors: error.response?.data?.errors
+      errors: errorData?.errors || errorData?.detail?.errors,
+      errorCode: errorData?.error_code || errorData?.detail?.error_code,
+      details: errorData?.details || errorData?.detail?.details
     };
     throw apiError;
   }
