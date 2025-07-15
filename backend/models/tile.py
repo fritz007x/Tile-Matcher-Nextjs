@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import numpy as np
 
@@ -35,8 +35,8 @@ class Tile(Document):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "tiles"  # MongoDB collection name
@@ -44,7 +44,7 @@ class Tile(Document):
 
     def update_timestamp(self):
         """Update the updated_at timestamp."""
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     async def save(self, *args, **kwargs):
         """Save the document and ensure timestamps are updated."""

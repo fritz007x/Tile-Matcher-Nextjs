@@ -6,6 +6,7 @@ import ImageUpload from '@/components/ImageUpload';
 import MatchResults from '@/components/MatchResults';
 import { apiService } from '@/lib/api';
 import { MatchResultItem, BackendMatchResponse, BackendMatchItem } from '@/types/match';
+import { APP_CONFIG } from '@/config';
 
 
 
@@ -45,16 +46,8 @@ export default function Home() {
       }
 
       const formattedResults: MatchResultItem[] = backendData.matches.map((match: BackendMatchItem, index: number) => {
-        // Check if we have Base64 image data from the backend
-        const hasImageData = match.has_image_data && match.image_data;
-        
-        // Only create a URL if we don't have base64 data
-        const imageUrl = !hasImageData && match.image_path
-          ? match.image_path.startsWith('http')
-            ? match.image_path 
-            : `/api/images?path=${encodeURIComponent(match.image_path)}`
-          : undefined;
-          
+        const imageUrl = apiService.matching.getThumbnailUrl(match.id);
+
         const result: MatchResultItem = {
           tile_id: match.id,
           id: match.id,
@@ -69,18 +62,10 @@ export default function Home() {
             description: match.description || undefined,
             created_at: match.created_at,
             updated_at: match.updated_at
-          }
+          },
+          imageUrl: imageUrl
         };
-        
-        // Add image data if available
-        if (hasImageData && match.image_data) {
-          result.image_data = match.image_data;
-          result.content_type = match.content_type || 'image/jpeg';
-          result.has_image_data = true;
-        } else if (imageUrl) {
-          result.imageUrl = imageUrl;
-        }
-        
+
         return result;
       });
 
@@ -88,6 +73,11 @@ export default function Home() {
       setMatchResults(formattedResults);
     } catch (err) {
       console.error('Error matching image:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        response: err?.response?.data || 'No response data'
+      });
       setError(err instanceof Error ? err.message : 'Failed to match the image. Please try again.');
       setMatchResults([]);
     } finally {

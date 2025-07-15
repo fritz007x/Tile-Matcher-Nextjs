@@ -111,33 +111,36 @@ const matching = {
   match: (formData: FormData) => 
     apiRequest<BackendMatchResponse>({
       method: 'POST',
-      url: '/matching/match',
+      url: '/api/matching/match',
       data: formData,
     }),
     
   getHistory: () => 
     apiRequest<MatchResultItem[]>({
       method: 'GET',
-      url: '/matching/history'
+      url: '/api/matching/history'
     }),
     
   getMatchById: (id: string) => 
     apiRequest<MatchResultItem>({
       method: 'GET',
-      url: `/matching/history/${id}`
+      url: `/api/matching/history/${id}`
     }),
     
   saveMatch: (id: string) => 
     apiRequest<{ message: string }>({
       method: 'POST',
-      url: `/matching/${id}/save`
+      url: `/api/matching/${id}/save`
     }),
     
   deleteMatch: (id: string) => 
     apiRequest<{ message: string }>({
       method: 'DELETE',
-      url: `/matching/${id}`
-    })
+      url: `/api/matching/${id}`
+    }),
+    
+  getThumbnailUrl: (tileId: string, width: number = 200, height: number = 200) => 
+    `${APP_CONFIG.apiBaseUrl}/api/matching/tile/${tileId}/thumbnail?width=${width}&height=${height}`
 };
 
 // User profile related API endpoints
