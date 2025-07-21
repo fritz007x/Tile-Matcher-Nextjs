@@ -18,7 +18,7 @@ export default function Home() {
   // Set default values for matching parameters
   const [topK, setTopK] = useState<number>(3);
   const [threshold, setThreshold] = useState<number>(70); // 70% threshold by default
-  const [method, setMethod] = useState<string>('color_hist');
+  const [method, setMethod] = useState<string>('enhanced_vit_multi_layer');
 
   const handleImageUpload = async (file: File) => {
     if (!file) return;
@@ -87,12 +87,17 @@ export default function Home() {
   
   // Available matching methods - These should match what the backend supports
   const availableMethods = [
-    { id: 'color_hist', name: 'Color Histogram' },
-    { id: 'orb', name: 'ORB Features' },
-    { id: 'vit_simple', name: 'Vision Transformer (Simple)' },
-    { id: 'vit_multi_layer', name: 'Vision Transformer (Multi-Layer)' },
-    { id: 'vit_multi_scale', name: 'Vision Transformer (Multi-Scale)' },
-    { id: 'ensemble', name: 'Ensemble (Multiple Methods)' }
+    { id: 'color_hist', name: 'Color Histogram', category: 'Traditional', speed: 'Fast', accuracy: 'Basic' },
+    { id: 'orb', name: 'ORB Features', category: 'Traditional', speed: 'Fast', accuracy: 'Good' },
+    { id: 'vit_simple', name: 'Vision Transformer (Simple)', category: 'AI - Basic', speed: 'Medium', accuracy: 'Good' },
+    { id: 'vit_multi_layer', name: 'Vision Transformer (Multi-Layer)', category: 'AI - Basic', speed: 'Medium', accuracy: 'Very Good' },
+    { id: 'vit_multi_scale', name: 'Vision Transformer (Multi-Scale)', category: 'AI - Basic', speed: 'Slow', accuracy: 'Very Good' },
+    { id: 'enhanced_vit_single', name: 'Enhanced ViT (Single-Layer)', category: 'AI - Enhanced', speed: 'Medium', accuracy: 'Excellent', recommended: true },
+    { id: 'enhanced_vit_multi_layer', name: 'Enhanced ViT (Multi-Layer) ⭐', category: 'AI - Enhanced', speed: 'Medium', accuracy: 'Excellent', recommended: true },
+    { id: 'enhanced_vit_multi_scale', name: 'Enhanced ViT (Multi-Scale)', category: 'AI - Enhanced', speed: 'Slow', accuracy: 'Best', recommended: true },
+    { id: 'ensemble', name: 'Ensemble (Traditional + Enhanced ViT)', category: 'Ensemble', speed: 'Slow', accuracy: 'Excellent' },
+    { id: 'enhanced_ensemble', name: 'Enhanced Ensemble (All Methods) 🏆', category: 'Ensemble', speed: 'Slowest', accuracy: 'Best', recommended: true },
+    { id: 'advanced_preprocessing', name: 'Advanced Preprocessing + Traditional', category: 'Specialized', speed: 'Medium', accuracy: 'Good' }
   ];
   
   // Available top_k options
@@ -124,9 +129,19 @@ export default function Home() {
                   onChange={(e) => setMethod(e.target.value)}
                   className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {availableMethods.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
+                  {/* Group methods by category */}
+                  {['Traditional', 'AI - Basic', 'AI - Enhanced', 'Ensemble', 'Specialized'].map(category => {
+                    const categoryMethods = availableMethods.filter(m => m.category === category);
+                    if (categoryMethods.length === 0) return null;
+                    
+                    return (
+                      <optgroup key={category} label={category}>
+                        {categoryMethods.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
                   {method === 'color_hist' && "Compares color distributions between images."}
@@ -134,8 +149,52 @@ export default function Home() {
                   {method === 'vit_simple' && "Simple Vision Transformer for basic visual pattern recognition."}
                   {method === 'vit_multi_layer' && "Multi-layer Vision Transformer for detailed feature extraction."}
                   {method === 'vit_multi_scale' && "Multi-scale Vision Transformer for robust pattern matching."}
-                  {method === 'ensemble' && "Combines multiple methods for best accuracy."}
+                  {method === 'enhanced_vit_single' && "Enhanced ViT with improved single-layer feature extraction and patch aggregation."}
+                  {method === 'enhanced_vit_multi_layer' && "Enhanced ViT combining features from multiple transformer layers for richer representation."}
+                  {method === 'enhanced_vit_multi_scale' && "Enhanced ViT with multi-layer features at multiple image scales for maximum accuracy."}
+                  {method === 'ensemble' && "Combines traditional methods with Enhanced ViT for balanced accuracy."}
+                  {method === 'enhanced_ensemble' && "Advanced ensemble using all Enhanced ViT variants for ultimate precision."}
+                  {method === 'advanced_preprocessing' && "Uses advanced image preprocessing with lighting normalization and tile extraction."}
                 </p>
+                
+                {/* Performance indicators */}
+                {(() => {
+                  const selectedMethod = availableMethods.find(m => m.id === method);
+                  if (!selectedMethod) return null;
+                  
+                  return (
+                    <div className="mt-2 flex gap-4 text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-gray-600">Speed:</span>
+                        <span className={`px-2 py-1 rounded-full text-white text-xs ${
+                          selectedMethod.speed === 'Fast' ? 'bg-green-500' :
+                          selectedMethod.speed === 'Medium' ? 'bg-yellow-500' :
+                          selectedMethod.speed === 'Slow' ? 'bg-orange-500' : 'bg-red-500'
+                        }`}>
+                          {selectedMethod.speed}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-gray-600">Accuracy:</span>
+                        <span className={`px-2 py-1 rounded-full text-white text-xs ${
+                          selectedMethod.accuracy === 'Basic' ? 'bg-gray-500' :
+                          selectedMethod.accuracy === 'Good' ? 'bg-blue-500' :
+                          selectedMethod.accuracy === 'Very Good' ? 'bg-indigo-500' :
+                          selectedMethod.accuracy === 'Excellent' ? 'bg-purple-500' : 'bg-pink-500'
+                        }`}>
+                          {selectedMethod.accuracy}
+                        </span>
+                      </div>
+                      {selectedMethod.recommended && (
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                            Recommended
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               
               {/* Top K Selection */}

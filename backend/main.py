@@ -130,9 +130,9 @@ async def startup_event():
         import asyncio
         await asyncio.sleep(0.5)
         
-        # Initialize the matching service
-        await get_matching_service()
-        logger.info("Matching service successfully initialized.")
+        # Initialize the matching service (no await needed for simple service)
+        get_matching_service()
+        logger.info("Simple matching service successfully initialized.")
 
         logger.info("Application startup complete.")
     except Exception as e:

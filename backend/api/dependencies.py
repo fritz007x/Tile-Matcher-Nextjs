@@ -4,8 +4,14 @@ from typing import Optional
 import os
 import logging
 
-# Re-export the correct service from the new location
-from backend.services.matching import get_matching_service, TileMatchingService
+# Re-export the simple matching service
+from backend.services.simple_matching import get_simple_matching_service, SimpleTileMatchingService
+
+# For compatibility, create aliases
+def get_matching_service():
+    return get_simple_matching_service()
+
+TileMatchingService = SimpleTileMatchingService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

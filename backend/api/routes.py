@@ -20,9 +20,12 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from backend.models.tile import Tile
-from backend.services.matching import TileMatchingService, get_matching_service
+from backend.services.simple_matching import SimpleTileMatchingService, get_simple_matching_service
+from backend.api.dependencies import get_matching_service, TileMatchingService
 from backend.schemas import TileResponse, MatchResponse, TileSearch, TileSearchResults
 from backend.exceptions import ValidationError, FileProcessingError, DatabaseError, MatchingServiceError
+from backend.utils import get_tile_image_data, ensure_image_format, get_mime_type
+from backend.cache.image_cache import cache_manager
 
 router = APIRouter(prefix="/api/matching", tags=["matching"])
 
@@ -231,7 +234,7 @@ def _safe_file_cleanup(file_path: str) -> None:
 async def match_tile(
     file: UploadFile = File(...),
     top_k: int = Form(5),
-    method: Optional[str] = Form('vit'),
+    method: Optional[str] = Form('color_hist'),
     threshold: Optional[float] = Form(0.0),
     matching_service: TileMatchingService = Depends(get_matching_service)
 ):
@@ -248,6 +251,8 @@ async def match_tile(
         MatchResponse with query filename, matches, and scores
     """
     try:
+        logging.info(f"Match request received - filename: {file.filename}, content_type: {file.content_type}")
+        
         # Input validation
         if not file.filename:
             raise ValidationError("Filename is required", field="file")
@@ -298,120 +303,56 @@ async def match_tile(
         
         # Sanitize filename for logging
         safe_filename = secure_filename(file.filename) or "unknown.jpg"
-        logging.info(f"Match request - file: {safe_filename}, top_k: {top_k}, method: {method}, threshold: {threshold}")
+        logging.info(f"Simple match request - file: {safe_filename}, top_k: {top_k}, method: {method}, threshold: {threshold}")
         
-        # Check if matching service has any tiles loaded
-        available_tiles = len(matching_service.tiles) if hasattr(matching_service, 'tiles') else 0
-        logging.info(f"Matching service has {available_tiles} tiles loaded")
-        
-        if available_tiles == 0:
-            # Try to load tiles from database if none are loaded
-            try:
-                db_tiles = await Tile.find().limit(100).to_list()
-                logging.info(f"Found {len(db_tiles)} tiles in database")
-                
-                if len(db_tiles) > 0:
-                    # Load tiles directly into matching service tiles dictionary
-                    for tile in db_tiles:
-                        if tile.image_data:
-                            tile_id = str(tile.id)
-                            # Add tile data to the tiles dictionary
-                            tile_data = {
-                                'id': tile_id,
-                                'sku': tile.sku,
-                                'model_name': tile.model_name,
-                                'collection_name': tile.collection_name,
-                                'content_type': tile.content_type,
-                                'image_path': tile.image_path,
-                                'image_data': base64.b64encode(tile.image_data).decode('utf-8'),
-                                'metadata': {
-                                    'sku': tile.sku,
-                                    'model_name': tile.model_name,
-                                    'collection_name': tile.collection_name,
-                                    'content_type': tile.content_type,
-                                    'uploaded_at': str(tile.created_at)
-                                },
-                                'created_at': tile.created_at.timestamp() if tile.created_at else time.time()
-                            }
-                            matching_service.tiles[tile_id] = tile_data
-                            
-                            # Cache features for the tile
-                            matching_service._cache_tile_features(tile_id, tile.image_data)
-                    logging.info(f"Loaded {len(db_tiles)} tiles into matching service")
-                    available_tiles = len(matching_service.tiles)
-                else:
-                    logging.warning("No tiles found in database")
-            except Exception as e:
-                logging.error(f"Failed to load tiles from database: {e}", exc_info=True)
-                raise DatabaseError("Failed to load tiles from database", operation="load_tiles")
-        
-        if available_tiles == 0:
-            # No tiles available for comparison
-            logging.warning("No tiles available in matching service for comparison")
-            return {
-                "query_filename": safe_filename,
-                "matches": [],
-                "scores": []
-            }
-        
-        # Find similar tiles using image bytes directly
+        # Use simplified matching service (just fetches from database)
         try:
-            matches = matching_service.find_similar_tiles(
+            logging.info(f"Calling simple matching service with method={method}, top_k={top_k}, threshold={threshold}")
+            matches = await matching_service.find_similar_tiles(
                 query_image_data=contents,
                 top_k=top_k,
                 method=method,
                 threshold=threshold
             )
+            logging.info(f"Simple matching service returned {len(matches)} matches")
         except Exception as e:
-            logging.error(f"Error in matching service: {str(e)}", exc_info=True)
+            logging.error(f"Error in simple matching service: {str(e)}", exc_info=True)
             raise MatchingServiceError("Failed to process image matching", method=method)
         
         logging.info(f"Found {len(matches)} matches for {safe_filename}")
         
-        # Format the response according to MatchResponse schema
+        # Simple formatting - the matching service already returns properly formatted data
         formatted_matches = []
         current_time = datetime.now()
         
         for match in matches:
-            # Robust timestamp handling
+            # Simple timestamp handling
             created_at = current_time
-            created_timestamp = match.get('created_at')
-            
-            if created_timestamp is not None:
+            if match.get('created_at'):
                 try:
-                    if isinstance(created_timestamp, (int, float)):
-                        created_at = datetime.fromtimestamp(created_timestamp)
-                    elif isinstance(created_timestamp, str):
-                        # Try to parse ISO format or timestamp string
-                        try:
-                            created_at = datetime.fromisoformat(created_timestamp.replace('Z', '+00:00'))
-                        except ValueError:
-                            created_at = datetime.fromtimestamp(float(created_timestamp))
-                    elif isinstance(created_timestamp, datetime):
-                        created_at = created_timestamp
-                except (ValueError, TypeError, OverflowError) as e:
-                    logging.warning(f"Invalid timestamp {created_timestamp}: {e}, using current time")
+                    created_at = datetime.fromtimestamp(match['created_at'])
+                except:
                     created_at = current_time
             
-            # Safely extract metadata
+            # Extract data from the simple matching service response
             metadata = match.get('metadata', {})
             
             match_data = {
-                "id": str(match.get('id', '')),
-                "sku": str(metadata.get('sku', '')),
-                "model_name": str(metadata.get('model_name', '')),
-                "collection_name": str(metadata.get('collection_name', '')),
-                "image_path": str(match.get('image_path', '')),
+                "id": match.get('tile_id', ''),
+                "sku": metadata.get('sku', ''),
+                "model_name": metadata.get('model_name', ''),
+                "collection_name": metadata.get('collection_name', ''),
+                "image_path": metadata.get('image_path', ''),
                 "created_at": created_at,
                 "updated_at": created_at,
                 "description": None,
-                "has_image_data": 'image_data' in match
+                "has_image_data": match.get('has_image_data', False),
+                "content_type": metadata.get('content_type', 'image/jpeg')
             }
             
-            # Include base64 image data if available
-            if 'image_data' in match and match['image_data']:
+            # Add image data if available
+            if match.get('image_data'):
                 match_data['image_data'] = match['image_data']
-                match_data['content_type'] = metadata.get('content_type', 'image/jpeg')
             
             formatted_matches.append(match_data)
         
@@ -520,67 +461,36 @@ async def get_tile_thumbnail(
     except InvalidId:
         logging.info(f"tile_id {tile_id} is not a valid ObjectId, skipping database lookup")
     
-    # Try database lookup only if it's a valid ObjectId
-    if is_valid_objectid:
-        try:
-            logging.debug(f"Attempting database lookup for thumbnail {tile_id}")
-            tile = await Tile.get(tile_id)
-            if tile and tile.image_data:
-                logging.info(f"Found tile in database, creating thumbnail: {tile.sku}")
-                # Create thumbnail from the database image data
-                img = Image.open(BytesIO(tile.image_data))
-                img.thumbnail((width, height))
-                
-                # Convert to base64
-                buffered = BytesIO()
-                img_format = tile.content_type.split('/')[-1] if tile.content_type else 'jpeg'
-                if img_format.lower() not in ['jpeg', 'jpg', 'png']:
-                    img_format = 'jpeg'
-                img.save(buffered, format=img_format)
-                
-                return {
-                    "tile_id": str(tile.id),
-                    "content_type": f"image/{img_format}",
-                    "data": base64.b64encode(buffered.getvalue()).decode('utf-8')
-                }
-            elif tile:
-                logging.warning(f"Tile {tile_id} found in database but no image_data")
-            else:
-                logging.debug(f"Tile {tile_id} not found in database")
-        except Exception as e:
-            logging.warning(f"Database lookup failed for thumbnail {tile_id}: {str(e)}")
-    
-    # Always try matching service as fallback (primary source for hash-based IDs)
+    # Simplified approach - just get from database
     try:
-        logging.debug(f"Attempting matching service lookup for thumbnail {tile_id}")
-        image_data = matching_service.get_tile_image_data(tile_id)
-        if image_data and 'data' in image_data:
-            logging.info(f"Found image in matching service, creating thumbnail for tile {tile_id}")
-            # Decode base64 and create thumbnail
-            img_bytes = base64.b64decode(image_data['data'])
-            img = Image.open(BytesIO(img_bytes))
-            img.thumbnail((width, height))
+        # Check cache first
+        cached_thumbnail = await cache_manager.get_thumbnail(tile_id, width, height)
+        if cached_thumbnail:
+            logging.debug(f"Returning cached thumbnail for tile {tile_id}")
+            return Response(content=cached_thumbnail, media_type="image/jpeg")
+        
+        # Get tile from database
+        tile = await Tile.get(ObjectId(tile_id))
+        if tile and tile.image_data:
+            logging.info(f"Found tile in database, creating thumbnail: {tile.sku}")
             
-            # Convert back to base64
-            buffered = BytesIO()
-            img_format = image_data.get('content_type', 'image/jpeg').split('/')[-1]
-            if img_format.lower() not in ['jpeg', 'jpg', 'png']:
-                img_format = 'jpeg'
-            img.save(buffered, format=img_format)
+            # Generate and cache thumbnail
+            thumbnail_data = await cache_manager.generate_and_cache_thumbnail(
+                tile_id, tile.image_data, width, height
+            )
             
-            return {
-                "tile_id": tile_id,
-                "content_type": f"image/{img_format}",
-                "data": base64.b64encode(buffered.getvalue()).decode('utf-8')
-            }
+            if thumbnail_data:
+                return Response(content=thumbnail_data, media_type="image/jpeg")
+            else:
+                logging.error(f"Failed to generate thumbnail for tile {tile_id}")
+                raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
         else:
-            logging.warning(f"No image data returned from matching service for thumbnail {tile_id}")
+            logging.warning(f"Tile {tile_id} not found or has no image data")
+            raise HTTPException(status_code=404, detail="Tile not found")
+            
     except Exception as e:
-        logging.error(f"Error creating thumbnail from matching service for {tile_id}: {str(e)}")
-    
-    # If both methods fail, return 404
-    logging.error(f"Thumbnail not found for tile {tile_id} in either database or matching service")
-    raise HTTPException(status_code=404, detail="Thumbnail not found")
+        logging.error(f"Error creating thumbnail for {tile_id}: {str(e)}")
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
 
 @router.get("/methods", response_model=List[str])
 async def get_available_methods(
@@ -590,6 +500,24 @@ async def get_available_methods(
     Get list of available matching methods
     """
     return matching_service.get_available_methods()
+
+@router.get("/cache/stats")
+async def get_cache_stats():
+    """Get image cache statistics for monitoring."""
+    return cache_manager.get_cache_stats()
+
+@router.get("/debug/tiles")
+async def debug_tiles():
+    """Debug endpoint to check if we can fetch tiles from database."""
+    try:
+        tiles = await Tile.find().limit(5).to_list()
+        return {
+            "tile_count": len(tiles),
+            "tiles": [{"id": str(tile.id), "sku": tile.sku, "model_name": tile.model_name} for tile in tiles]
+        }
+    except Exception as e:
+        logging.error(f"Error fetching tiles for debug: {e}")
+        return {"error": str(e), "tile_count": 0}
 
 @router.post("/search", response_model=TileSearchResults)
 async def search_tiles(
