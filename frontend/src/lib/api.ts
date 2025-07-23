@@ -74,35 +74,35 @@ const auth = {
   login: (credentials: LoginCredentials) => 
     apiRequest<AuthToken>({
       method: 'POST',
-      url: '/auth/token',
+      url: '/token',
       data: credentials
     }),
     
   register: (userData: RegisterData) => 
     apiRequest<{ user: any }>({
       method: 'POST',
-      url: '/auth/register',
+      url: '/api/auth/register',
       data: userData
     }),
     
   forgotPassword: (data: PasswordResetRequest) => 
     apiRequest<{ message: string }>({
       method: 'POST',
-      url: '/auth/forgot-password',
+      url: '/api/auth/forgot-password',
       data
     }),
     
   resetPassword: (data: PasswordResetConfirm) => 
     apiRequest<{ message: string }>({
       method: 'POST',
-      url: '/auth/reset-password',
+      url: '/api/auth/reset-password',
       data
     }),
     
   me: () => 
     apiRequest<{ user: any }>({
       method: 'GET',
-      url: '/auth/me'
+      url: '/api/auth/me'
     })
 };
 

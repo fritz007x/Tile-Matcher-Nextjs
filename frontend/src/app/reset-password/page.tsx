@@ -60,14 +60,11 @@ export default function ResetPasswordPage() {
       setIsLoading(true);
       setError('');
       
-      // In a real implementation, call the reset password API
-      // await apiService.auth.resetPassword({
-      //   token,
-      //   password: formData.password
-      // });
-      
-      // For now, just simulate an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the reset password API
+      await apiService.auth.resetPassword({
+        token,
+        password: formData.password
+      });
       
       setIsSuccess(true);
       

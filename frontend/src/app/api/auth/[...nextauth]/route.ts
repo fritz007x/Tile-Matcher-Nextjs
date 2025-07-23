@@ -38,8 +38,11 @@ const handler = NextAuth({
             throw new Error('API URL not configured');
           }
           
+          const loginUrl = `${NEXT_PUBLIC_API_URL}/api/token`;
+          console.log('Attempting login to:', loginUrl);
+          
           // Call the backend API for authentication
-          const response = await axios.post(`${NEXT_PUBLIC_API_URL}/token`, {
+          const response = await axios.post(loginUrl, {
             username: credentials.email,
             password: credentials.password,
           });

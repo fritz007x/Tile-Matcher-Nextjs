@@ -47,6 +47,9 @@ tqdm==4.67.1  # Updated: 4.65.0 -> 4.67.1 (safe update)
 # Data validation - Pydantic v2 for Python 3.13 and modern FastAPI
 pydantic>=2.0.0,<3.0.0
 
+# Email templating
+jinja2>=3.1.0
+
 # Web utilities
 werkzeug>=2.3.0,<3.0.0  # Kept at 2.x (latest compatible with Python 3.8)
 
