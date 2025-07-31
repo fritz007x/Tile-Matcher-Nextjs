@@ -228,10 +228,6 @@ const MatchResults: React.FC<MatchResultsProps> = ({ results = [], isLoading = f
                   <dd className="text-gray-900 capitalize">{result.method.replace('_', ' ')}</dd>
                 </div>
                 
-                <div className="flex justify-between">
-                  <dt className="font-medium text-gray-700">Tile ID:</dt>
-                  <dd className="text-gray-900 font-mono text-xs">{result.tile_id}</dd>
-                </div>
                 
                 {result.metadata?.description && (
                   <div>
