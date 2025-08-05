@@ -1232,6 +1232,28 @@ class SimpleTileMatchingService:
         except Exception as e:
             self.logger.error(f"Error getting tile image data: {e}")
             return None
+    
+    def add_tile(self, image_data: bytes, metadata: Dict[str, Any], tile_id: str) -> None:
+        """
+        Add a tile to the matching service.
+        
+        This method is called when a tile is uploaded to the catalog.
+        Since this service is stateless and uses the database directly,
+        we don't need to maintain an in-memory index.
+        
+        Args:
+            image_data: The tile image data as bytes
+            metadata: Tile metadata dictionary
+            tile_id: The tile ID
+        """
+        try:
+            self.logger.info(f"Tile {tile_id} added to matching service with metadata: {metadata.get('sku', 'Unknown')}")
+            # In this implementation, we don't need to do anything special
+            # as the matching service queries the database directly
+            
+        except Exception as e:
+            self.logger.error(f"Error adding tile to matching service: {e}")
+            # Don't raise the exception as this is not critical for the upload process
 
 # Global service instance
 _simple_matching_service = None

@@ -35,12 +35,23 @@ class TileResponse(TileBase):
     @classmethod
     def from_mongo(cls, data: dict) -> 'TileResponse':
         """Convert MongoDB document to TileResponse."""
-        if isinstance(data.get('_id'), ObjectId):
-            data['id'] = str(data['_id'])
+        # Handle _id to id conversion
+        if '_id' in data:
+            if isinstance(data['_id'], ObjectId):
+                data['id'] = str(data['_id'])
+            else:
+                data['id'] = str(data['_id'])
+            # Remove the _id field after conversion
+            data.pop('_id', None)
+        
+        # Handle image_data field
         if 'image_data' in data and data['image_data'] is not None:
             data['has_image_data'] = True
             # Don't include the actual binary data in the response by default
             data.pop('image_data', None)
+        else:
+            data['has_image_data'] = False
+            
         return cls(**data)
 
 class TileUpload(BaseModel):
