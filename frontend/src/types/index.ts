@@ -62,3 +62,42 @@ export interface LoadingSpinnerProps {
   text?: string;
   fullScreen?: boolean;
 }
+
+// Tile and catalog related types
+export interface TileSearchFilters {
+  sku: string;
+  modelName: string;
+  collectionName: string;
+  description: string;
+  createdAfter: string;
+  limit: number;
+  offset: number;
+}
+
+export interface TileResult {
+  id: string;
+  sku: string;
+  model_name: string;
+  collection_name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  has_image_data: boolean;
+  image_data?: string;
+  content_type: string;
+}
+
+export interface TileSearchResponse {
+  results: TileResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TileSearchProps {
+  onTileSelect?: (tile: TileResult) => void;
+  maxResults?: number;
+  showImages?: boolean;
+  allowMultiSelect?: boolean;
+  className?: string;
+}

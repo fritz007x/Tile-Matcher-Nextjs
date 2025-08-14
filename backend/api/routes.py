@@ -24,7 +24,7 @@ from backend.services.simple_matching import SimpleTileMatchingService, get_simp
 from backend.api.dependencies import get_matching_service, TileMatchingService
 from backend.schemas import TileResponse, MatchResponse, TileSearch, TileSearchResults
 from backend.exceptions import ValidationError, FileProcessingError, DatabaseError, MatchingServiceError
-from backend.utils import get_tile_image_data, ensure_image_format, get_mime_type
+from backend.utils import get_tile_image_data, ensure_image_format, get_mime_type, validate_objectid
 from backend.cache.image_cache import cache_manager
 
 router = APIRouter(prefix="/api/matching", tags=["matching"])
@@ -453,44 +453,45 @@ async def get_tile_thumbnail(
         raise HTTPException(status_code=400, detail="Invalid thumbnail dimensions")
     
     # Check if tile_id is a valid ObjectId for database lookup
-    is_valid_objectid = False
-    try:
-        ObjectId(tile_id)
-        is_valid_objectid = True
+    is_valid_objectid = validate_objectid(tile_id)
+    if is_valid_objectid:
         logging.debug(f"tile_id {tile_id} is a valid ObjectId")
-    except InvalidId:
+    else:
         logging.info(f"tile_id {tile_id} is not a valid ObjectId, skipping database lookup")
     
-    # Simplified approach - just get from database
-    try:
-        # Check cache first
-        cached_thumbnail = await cache_manager.get_thumbnail(tile_id, width, height)
-        if cached_thumbnail:
-            logging.debug(f"Returning cached thumbnail for tile {tile_id}")
-            return Response(content=cached_thumbnail, media_type="image/jpeg")
-        
-        # Get tile from database
-        tile = await Tile.get(ObjectId(tile_id))
-        if tile and tile.image_data:
-            logging.info(f"Found tile in database, creating thumbnail: {tile.sku}")
-            
-            # Generate and cache thumbnail
-            thumbnail_data = await cache_manager.generate_and_cache_thumbnail(
-                tile_id, tile.image_data, width, height
-            )
-            
-            if thumbnail_data:
-                return Response(content=thumbnail_data, media_type="image/jpeg")
+    # Try database lookup only if it's a valid ObjectId
+    if is_valid_objectid:
+        try:
+            logging.debug(f"Attempting database lookup for thumbnail {tile_id}")
+            tile = await Tile.get(ObjectId(tile_id))
+            if tile and tile.image_data:
+                logging.info(f"Found tile in database, creating thumbnail: {tile.sku}")
+                # Create thumbnail from the database image data
+                img = Image.open(BytesIO(tile.image_data))
+                img.thumbnail((width, height))
+                
+                # Convert to base64
+                buffered = BytesIO()
+                img_format = tile.content_type.split('/')[-1] if tile.content_type else 'jpeg'
+                if img_format.lower() not in ['jpeg', 'jpg', 'png']:
+                    img_format = 'jpeg'
+                img.save(buffered, format=img_format)
+                
+                return {
+                    "tile_id": str(tile.id),
+                    "content_type": f"image/{img_format}",
+                    "data": base64.b64encode(buffered.getvalue()).decode('utf-8')
+                }
+            elif tile:
+                logging.warning(f"Tile {tile_id} found in database but no image_data")
             else:
-                logging.error(f"Failed to generate thumbnail for tile {tile_id}")
-                raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
-        else:
-            logging.warning(f"Tile {tile_id} not found or has no image data")
-            raise HTTPException(status_code=404, detail="Tile not found")
-            
-    except Exception as e:
-        logging.error(f"Error creating thumbnail for {tile_id}: {str(e)}")
-        raise HTTPException(status_code=404, detail="Thumbnail not found")
+                logging.debug(f"Tile {tile_id} not found in database")
+        except Exception as e:
+            logging.warning(f"Database lookup failed for thumbnail {tile_id}: {str(e)}")
+    
+    # If database lookup fails, return 404
+    logging.error(f"Thumbnail not found for tile {tile_id} in database")
+    raise HTTPException(status_code=404, detail="Thumbnail not found")
 
 @router.get("/methods", response_model=List[str])
 async def get_available_methods(
